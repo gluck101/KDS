@@ -2,16 +2,6 @@
 <html lang="en" >
 <head>
   <meta charset="UTF-8">
-  <title>KDS</title>
-  <link rel="stylesheet" href="./style.css">
-
-</head>
-<body>
-<!-- partial:index.partial.html -->
-<!DOCTYPE html>
-<html lang="en" >
-<head>
-  <meta charset="UTF-8">
   <title>BEST OF B</title>
   <link rel="stylesheet" href="./style.css">
 
@@ -1059,7 +1049,13 @@ button#send-message-button:hover {
          
   
   
-   function displayIncomingOrder(orderData, orderId) {
+  
+  // Display Incoming Order with Voice Note Playback
+  
+         
+  
+  
+  function displayIncomingOrder(orderData, orderId) {
   const incomingOrdersContainer = document.getElementById('incoming-orders-container');
   const orderDiv = document.createElement('div');
   orderDiv.classList.add('order-item');
@@ -1116,9 +1112,10 @@ button#send-message-button:hover {
   // Append the order to the container
   incomingOrdersContainer.appendChild(orderDiv);
 
-  // Announce the order
-  announceOrder(orderData);
+  // Announce the order (Pass orderId to stop announcements when estimated time is set)
+  announceOrder(orderData, orderId);
 }
+
 
   
   
@@ -1133,33 +1130,48 @@ button#send-message-button:hover {
 
  
 
-   function announceOrder(orderData) {
-  const message = `You have a new order from ${orderData.staffName || "a staff member"}. The order includes: ${orderData.items.map(item => `${item.quantity} ${item.name}`).join(", ")}. Please provide estimated time for this order.`;
+function announceOrder(orderData, orderId) {
+  const staffName = orderData.staffName || "a staff member";
+  const itemsDescription = orderData.items
+    .map(item => `${item.quantity} ${item.name}`)
+    .join(", ");
+  
+  const message = `You have a new order from ${staffName}. The order includes: ${itemsDescription}. Please provide estimated time for this order.`;
 
-  function tryAnnounce() {
-    db.ref('ttsInProgress').once('value').then(snapshot => {
-      if (!snapshot.val()) {
-        db.ref('ttsInProgress').set(true).then(() => {
-          repeatAnnouncement(message, 3, 2000, () => {
-            db.ref('ttsInProgress').set(false);
-          });
-        });
-      } else {
-        setTimeout(tryAnnounce, 1000); // Retry after 1 second if TTS is busy
-      }
-    });
+  // Variable to store the announcement interval
+  let announcementInterval;
+
+  function speakMessage() {
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = "en-US";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    speechSynthesis.speak(utterance);
   }
 
-  tryAnnounce();
-}
-  
-  
-  
+  // Start repeating announcements
+  function startAnnouncement() {
+    announcementInterval = setInterval(() => {
+      if (speechSynthesis.speaking) return; // Prevent overlapping announcements
+      speakMessage();
+    }, 2000); // Repeat every 2 seconds
+  }
 
-  
-  
-  
-  
+  // Stop announcements when estimated time is entered
+  const timeEstimateInput = document.getElementById(`time-estimate-${orderId}`);
+  timeEstimateInput.addEventListener('change', () => {
+    if (timeEstimateInput.value) {
+      clearInterval(announcementInterval); // Stop further announcements
+      speechSynthesis.cancel(); // Stop any ongoing announcement
+      console.log(`Announcement stopped for order ${orderId}`);
+    }
+  });
+
+  // Begin announcements
+  startAnnouncement();
+}
+
+
   
   
   
@@ -1214,35 +1226,35 @@ button#send-message-button:hover {
   
   
 
-  function announceOrder(orderData) {
-  const staffName = orderData.staffName || "a staff member";
-  const itemsDescription = orderData.items
-    .map(item => `${item.quantity} ${item.name}`)
-    .join(", ");
+//   function announceOrder(orderData) {
+//   const staffName = orderData.staffName || "a staff member";
+//   const itemsDescription = orderData.items
+//     .map(item => `${item.quantity} ${item.name}`)
+//     .join(", ");
   
-  // Message with additional prompt
-  const message = `You have a new order from ${staffName}. The order includes: ${itemsDescription}. Please provide estimated time for this order.`;       // Function to speak the message with a delay between repetitions
-  function repeatAnnouncement(times, delay) {
-    let count = 0;
+//   // Message with additional prompt
+//   const message = `You have a new order from ${staffName}. The order includes: ${itemsDescription}. Please provide estimated time for this order.`;       // Function to speak the message with a delay between repetitions
+//   function repeatAnnouncement(times, delay) {
+//     let count = 0;
 
-    function speakMessage() {
-      if (count < times) {
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = "en-US";
-        utterance.rate = 1; // Normal speaking rate
-        utterance.pitch = 1; // Normal pitch
-        utterance.onend = () => setTimeout(speakMessage, delay); // Wait before the next repetition
-        speechSynthesis.speak(utterance);
-        count++;
-      }
-    }    // Start the first announcement
-    speechSynthesis.cancel(); // Ensure no ongoing speech
-    speakMessage();
-  }
+//     function speakMessage() {
+//       if (count < times) {
+//         const utterance = new SpeechSynthesisUtterance(message);
+//         utterance.lang = "en-US";
+//         utterance.rate = 1; // Normal speaking rate
+//         utterance.pitch = 1; // Normal pitch
+//         utterance.onend = () => setTimeout(speakMessage, delay); // Wait before the next repetition
+//         speechSynthesis.speak(utterance);
+//         count++;
+//       }
+//     }    // Start the first announcement
+//     speechSynthesis.cancel(); // Ensure no ongoing speech
+//     speakMessage();
+//   }
 
-  // Repeat the announcement three times with a 2-second delay between repetitions
-  repeatAnnouncement(10, 2000); // 2000 ms = 2 seconds delay
-} 
+//   // Repeat the announcement three times with a 2-second delay between repetitions
+//   repeatAnnouncement(10, 2000); // 2000 ms = 2 seconds delay
+// } 
          
 
 
@@ -2074,9 +2086,5 @@ function removeMessage(messageId) {
 <!-- partial -->
   <script  src="./script.js"></script>
 
-</body>
-</html>
-<!-- partial -->
-  
 </body>
 </html>
